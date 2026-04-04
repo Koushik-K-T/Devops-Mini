@@ -1,9 +1,217 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>DevOps Project</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iOS Calculator</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Hello from DevOps Pipeline</h1>
+  <main class="app-shell" aria-label="Calculator app">
+    <section class="calculator" aria-label="Apple iOS style calculator">
+      <div class="display-wrap">
+        <p class="expression" id="expression" aria-live="polite"></p>
+        <p class="display" id="display" aria-live="assertive">0</p>
+      </div>
+
+      <div class="keys" role="group" aria-label="Calculator keys">
+        <button class="key key-fn" data-action="clear">AC</button>
+        <button class="key key-fn" data-action="toggle-sign">+/-</button>
+        <button class="key key-fn" data-action="percent">%</button>
+        <button class="key key-op" data-action="operator" data-value="/">&divide;</button>
+
+        <button class="key key-num" data-action="digit" data-value="7">7</button>
+        <button class="key key-num" data-action="digit" data-value="8">8</button>
+        <button class="key key-num" data-action="digit" data-value="9">9</button>
+        <button class="key key-op" data-action="operator" data-value="*">&times;</button>
+
+        <button class="key key-num" data-action="digit" data-value="4">4</button>
+        <button class="key key-num" data-action="digit" data-value="5">5</button>
+        <button class="key key-num" data-action="digit" data-value="6">6</button>
+        <button class="key key-op" data-action="operator" data-value="-">-</button>
+
+        <button class="key key-num" data-action="digit" data-value="1">1</button>
+        <button class="key key-num" data-action="digit" data-value="2">2</button>
+        <button class="key key-num" data-action="digit" data-value="3">3</button>
+        <button class="key key-op" data-action="operator" data-value="+">+</button>
+
+        <button class="key key-num key-zero" data-action="digit" data-value="0">0</button>
+        <button class="key key-num" data-action="decimal">.</button>
+        <button class="key key-op" data-action="equals">=</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const display = document.getElementById('display');
+    const expression = document.getElementById('expression');
+    const keys = document.querySelector('.keys');
+
+    let firstValue = null;
+    let operator = null;
+    let waitingForSecondValue = false;
+    let currentValue = '0';
+
+    function formatNumber(value) {
+      if (!Number.isFinite(value)) {
+        return 'Error';
+      }
+
+      const asString = value.toString();
+      if (asString.length > 12) {
+        return Number(value).toExponential(6);
+      }
+      return asString;
+    }
+
+    function calculate(a, b, currentOperator) {
+      switch (currentOperator) {
+        case '+':
+          return a + b;
+        case '-':
+          return a - b;
+        case '*':
+          return a * b;
+        case '/':
+          return b === 0 ? NaN : a / b;
+        default:
+          return b;
+      }
+    }
+
+    function updateDisplay() {
+      display.textContent = currentValue;
+      if (firstValue !== null && operator) {
+        expression.textContent = `${formatNumber(firstValue)} ${operator}`;
+      } else {
+        expression.textContent = '';
+      }
+    }
+
+    function resetCalculator() {
+      firstValue = null;
+      operator = null;
+      waitingForSecondValue = false;
+      currentValue = '0';
+      updateDisplay();
+    }
+
+    function inputDigit(digit) {
+      if (waitingForSecondValue) {
+        currentValue = digit;
+        waitingForSecondValue = false;
+        updateDisplay();
+        return;
+      }
+
+      currentValue = currentValue === '0' ? digit : currentValue + digit;
+      updateDisplay();
+    }
+
+    function inputDecimal() {
+      if (waitingForSecondValue) {
+        currentValue = '0.';
+        waitingForSecondValue = false;
+        updateDisplay();
+        return;
+      }
+
+      if (!currentValue.includes('.')) {
+        currentValue += '.';
+        updateDisplay();
+      }
+    }
+
+    function handleOperator(nextOperator) {
+      const inputValue = Number(currentValue);
+
+      if (firstValue === null) {
+        firstValue = inputValue;
+      } else if (operator && !waitingForSecondValue) {
+        const result = calculate(firstValue, inputValue, operator);
+        currentValue = formatNumber(result);
+        firstValue = result;
+      }
+
+      operator = nextOperator;
+      waitingForSecondValue = true;
+      updateDisplay();
+    }
+
+    function handleEquals() {
+      if (!operator || waitingForSecondValue) {
+        return;
+      }
+
+      const secondValue = Number(currentValue);
+      const result = calculate(firstValue, secondValue, operator);
+
+      currentValue = formatNumber(result);
+      firstValue = null;
+      operator = null;
+      waitingForSecondValue = false;
+      expression.textContent = '';
+      updateDisplay();
+    }
+
+    function toggleSign() {
+      if (currentValue === '0' || currentValue === 'Error') {
+        return;
+      }
+      currentValue = currentValue.startsWith('-') ? currentValue.slice(1) : `-${currentValue}`;
+      updateDisplay();
+    }
+
+    function toPercent() {
+      const asNumber = Number(currentValue);
+      currentValue = formatNumber(asNumber / 100);
+      updateDisplay();
+    }
+
+    keys.addEventListener('click', (event) => {
+      const key = event.target.closest('button');
+      if (!key) {
+        return;
+      }
+
+      const { action, value } = key.dataset;
+
+      if (action === 'digit') {
+        inputDigit(value);
+        return;
+      }
+
+      if (action === 'decimal') {
+        inputDecimal();
+        return;
+      }
+
+      if (action === 'operator') {
+        handleOperator(value);
+        return;
+      }
+
+      if (action === 'equals') {
+        handleEquals();
+        return;
+      }
+
+      if (action === 'toggle-sign') {
+        toggleSign();
+        return;
+      }
+
+      if (action === 'percent') {
+        toPercent();
+        return;
+      }
+
+      if (action === 'clear') {
+        resetCalculator();
+      }
+    });
+
+    updateDisplay();
+  </script>
 </body>
 </html>
